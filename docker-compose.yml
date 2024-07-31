@@ -7,20 +7,20 @@ services:
       context: .
     container_name: container_homework_docker_compose
     depends_on:
-      - db
+      - db1
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=052003
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/expense_tracking
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db1:5432/expense_tracking
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=052003
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
     ports:
       - "8082:8080"
 
-  db:
-    image: postgres
-    container_name: db
+  db1:
+    image: postgres:latest
+    container_name: db1
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=052003
@@ -30,5 +30,57 @@ services:
     volumes:
       - volume_docker_compose:/var/lib/postgresql/data
 
+  db2:
+    image: postgres:latest
+    container_name: postgres_keycloak_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=052003
+      - POSTGRES_DB=keycloak_db
+    volumes:
+      - keycloak_data2:/var/lib/postgresql/data
+    ports:
+      - "5438:5432"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: container_keycloak
+    environment:
+      - DB_VENDOR=postgres
+      - DB_ADDR=db2
+      - DB_DATABASE=keycloak_db
+      - DB_USER=postgres
+      - DB_PASSWORD=052003
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KEYCLOAK_LOGLEVEL=DEBUG
+      - KEYCLOAK_IMPORT=/tmp/realm.json
+    depends_on:
+      - db2
+    command: start-dev
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    volumes:
+      - ./realm.json:/tmp/realm.json
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: 'rabbitmq'
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbit
+      - RABBITMQ_DEFAULT_PASS=rabbit
+
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    networks:
+      - rabbitmq_go_net
+networks:
+  rabbitmq_go_net:
+    driver: bridge
 volumes:
   volume_docker_compose:
+  keycloak_data2:
